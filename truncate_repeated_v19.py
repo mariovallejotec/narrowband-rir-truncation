@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-truncate_repeated_v16 - Covariance pipeline (repeated measurements) with
+truncate_repeated_v17 - Covariance pipeline (repeated measurements) with
 band-expanded outlier correction, same as the single-RIR pipeline
-(truncate_single_v16) but with the initial truncation times estimated from
-the covariance of measurement pairs instead of per-bin Lundeby.
+(truncate_single_v17) but with the initial truncation times estimated from
+the covariance of measurement pairs instead of per-bin Lundeby. Onset
+trimming was already present here since v16; renamed to v17 to pair with
+the single-RIR pipeline, which only gained onset trimming in this version.
 
 Why the detector works on a truncation-time excess RATIO (scale-invariant)
 rather than on tail energy in dB:
@@ -27,9 +29,9 @@ from scipy.signal import ShortTimeFFT
 import soundfile as sf
 
 from utils import unimodal_regression, time_align_rirs
-from truncation_core_v16 import trunc_time_excess_ratio, band_expand_replace
+from truncation_core_v19 import trunc_time_excess_ratio, band_expand_replace
 
-API_VERSION = "v16-repeated-trunc-excess-outlier"
+API_VERSION = "v19-repeated-trunc-excess-outlier-self-contained"
 
 
 def load_rir_raw(path, target_fs=None, channel=0):
@@ -44,6 +46,9 @@ def load_rir_raw(path, target_fs=None, channel=0):
         raise ValueError("file contains no samples.")
     if not np.all(np.isfinite(rir_raw)):
         raise ValueError("file contains non-finite samples (NaN or Inf).")
+    # Remove DC offset (constant hardware offset never decays and blocks
+    # the noise-threshold crossing at the 0 Hz bin; see load_rir).
+    rir_raw = rir_raw - np.mean(rir_raw)
     if target_fs is not None and fs_file != target_fs:
         rir = signal.resample(rir_raw, int(len(rir_raw) * target_fs / fs_file))
         return rir, target_fs
@@ -63,7 +68,7 @@ def align_pair(rir_a, rir_b, up_factor=10):
 
 def truncate_covariance_band_expanded(rirs, fs, winLen=1024, hop=512,
                                       do_align=True, trunc_excess_ratio=1.25,
-                                      band_hz=100.0, neighbour_fraction=3,
+                                      band_hz=150.0, neighbour_fraction=3,
                                       replacement_fraction=1,
                                       f_lo=100.0, f_hi=18000.0):
     if len(rirs) < 2:
@@ -106,10 +111,12 @@ def truncate_covariance_band_expanded(rirs, fs, winLen=1024, hop=512,
     init_mask = (Cov_uni_avg > noise_var).astype(float)
 
     init_trunc = np.full(n_freqs, times[-1])
+    init_onset = np.full(n_freqs, times[0])
     for fr in range(n_freqs):
         kept = np.where(init_mask[fr, :] > 0)[0]
         if len(kept) > 0:
             init_trunc[fr] = times[kept[-1]]
+            init_onset[fr] = times[kept[0]]
 
     # Outlier detection on truncation-time excess RATIO (scale-invariant).
     excess_ratio = trunc_time_excess_ratio(init_trunc, freqs,
@@ -124,6 +131,7 @@ def truncate_covariance_band_expanded(rirs, fs, winLen=1024, hop=512,
     mask = np.ones((n_freqs, n_frames), dtype=float)
     for fr in range(n_freqs):
         mask[fr, times > final_trunc[fr]] = 0
+        mask[fr, times < init_onset[fr]] = 0
 
     Z_masked = Zs[0] * mask
     rir_trunc = SFT.istft(Z_masked, k1=rir_len)

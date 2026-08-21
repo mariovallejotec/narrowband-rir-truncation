@@ -1,6 +1,11 @@
-"""Core truncation functions shared by both pipelines:
-RIR loading, per-bin Lundeby, truncation-excess ratio, healthy-neighbour
-median replacement (band expansion), baseline Lundeby truncation.
+"""Core truncation functions shared by both pipelines: generic wav RIR
+loading (mono and multichannel), DC-offset correction, per-bin Lundeby,
+truncation-excess ratio, healthy-neighbour median replacement (band
+expansion), baseline Lundeby truncation. Format-agnostic and
+dataset-agnostic by design: no dataset-specific file formats or names
+belong here. For dataset-specific ingestion (MATLAB .mat, HDF5, etc.) see
+dataset_loaders_v19.py, which reuses `remove_dc_offset` from this file
+instead of duplicating the correction.
 """
 import numpy as np
 from scipy import signal
@@ -9,7 +14,10 @@ import soundfile as sf
 
 
 def load_rir(path, target_fs=48000, channel=0):
-    """Load WAV, take one channel, resample to target_fs, peak-normalize."""
+    """Load WAV, take one channel, resample to target_fs. No peak
+    normalization: removed in v18, was an unnecessary music-production
+    habit (export the normalized master to avoid clipping), not needed for
+    this pipeline."""
     rir_raw, fs_file = sf.read(path)
     n_channels = 1 if rir_raw.ndim == 1 else rir_raw.shape[1]
     if not 0 <= channel < n_channels:
@@ -25,13 +33,75 @@ def load_rir(path, target_fs=48000, channel=0):
         rir = signal.resample(rir_raw, int(len(rir_raw) * target_fs / fs_file))
     else:
         rir = rir_raw.copy()
-    rir = rir / (np.max(np.abs(rir)) + 1e-12)
+    # Remove DC offset: a constant hardware offset in the recording chain
+    # never decays, so the 0 Hz bin's envelope stays flat and the noise
+    # threshold can never be crossed, leaving that bin untruncated.
+    rir = rir - np.mean(rir)
     return rir, target_fs
+
+
+def load_rir_multichannel(path, target_fs=48000):
+    """Load WAV, keep ALL channels, resample and DC-correct each
+    independently. Added in v18 so multichannel RIRs (stereo, ambisonic,
+    etc.) can be truncated channel by channel instead of picking one
+    arbitrarily.
+
+    Returns
+    -------
+    rir : 2-D array (n_samples, n_channels)
+    target_fs : int
+    n_channels : int
+    """
+    rir_raw, fs_file = sf.read(path, always_2d=True)
+    n_channels = rir_raw.shape[1]
+    if rir_raw.size == 0:
+        raise ValueError("file contains no samples.")
+    if not np.all(np.isfinite(rir_raw)):
+        raise ValueError("file contains non-finite samples (NaN or Inf).")
+
+    channels = []
+    for ch in range(n_channels):
+        x = rir_raw[:, ch]
+        if fs_file != target_fs:
+            x = signal.resample(x, int(len(x) * target_fs / fs_file))
+        else:
+            x = x.copy()
+        x = x - np.mean(x)
+        channels.append(x)
+
+    rir = np.stack(channels, axis=1)
+    return rir, target_fs, n_channels
+
+
+def remove_dc_offset(rir):
+    """Subtract the mean: a constant hardware offset in the recording chain
+    never decays, so the 0 Hz bin's envelope stays flat and the noise
+    threshold can never be crossed, leaving that bin untruncated. Shared
+    helper so every format-specific loader (see dataset_loaders_v19.py)
+    applies the exact same correction instead of duplicating this line."""
+    return rir - np.mean(rir)
 
 
 # ------------------------------------------------------------------------------
 # Per-bin Lundeby on STFT energy envelopes
 # ------------------------------------------------------------------------------
+
+
+def _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB):
+    """Onset time: last upward crossing of the noise floor before the peak.
+
+    Mirrors the truncation crossing (last downward crossing after the peak)
+    but on the rising side, using the same noise_dB estimate. If the bin
+    never dips below the noise floor before the peak (e.g. the direct sound
+    is in the very first frame), the onset defaults to times[0] -- i.e. no
+    front trimming for that bin, the safe/conservative fallback.
+    """
+    above = env_dB[:peak_idx + 1] > noise_dB
+    crossings = np.where(np.diff(above.astype(int)) == 1)[0]
+    if len(crossings) == 0:
+        return times[0]
+    onset_idx = crossings[-1] + 1
+    return float(times[onset_idx])
 
 
 def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
@@ -55,6 +125,9 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
     -------
     trunc_time : float
         Truncation time in seconds. If estimation fails, returns times[-1].
+    onset_time : float
+        Onset time in seconds (last upward noise-floor crossing before the
+        peak). If estimation fails, returns times[0] (no front trimming).
     """
     n_frames = len(energy_envelope)
     dur = times[-1]
@@ -68,7 +141,7 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
     n_tail = max(int(np.round(n_frames * 0.1)), 1)
     noise_est = np.mean(env[-n_tail:])
     if noise_est <= 0:
-        return dur
+        return dur, times[0]
     noise_dB = 10 * np.log10(noise_est)
 
     # Peak index
@@ -77,12 +150,12 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
     # Initial regression: from peak to dB_above_noise above noise
     above_noise = np.where(env_dB[peak_idx:] > noise_dB + dB_above_noise)[0]
     if len(above_noise) < 2:
-        return dur
+        return dur, _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB)
     stop_idx = peak_idx + above_noise[-1]
     start_idx = peak_idx
 
     if stop_idx <= start_idx:
-        return dur
+        return dur, _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB)
 
     # First regression
     t_reg = times[start_idx:stop_idx + 1]
@@ -92,7 +165,7 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
     slope = result[0]  # [intercept, slope]
 
     if slope[1] >= 0 or np.any(np.isnan(slope)):
-        return dur
+        return dur, _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB)
 
     # Initial crossing point
     crossing = (noise_dB - slope[0]) / slope[1]
@@ -110,7 +183,7 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
         noise_start = min(cutoff_idx, last_90)
         noise_est = np.mean(env[noise_start:])
         if noise_est <= 0:
-            return dur
+            return dur, _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB)
         noise_dB = 10 * np.log10(noise_est)
 
         # Re-regression
@@ -135,11 +208,13 @@ def _lundeby_per_bin(energy_envelope, times, dB_above_noise=10,
         if abs(old_crossing - crossing) < tol:
             break
 
+    onset_time = _onset_from_noise_floor(env_dB, times, peak_idx, noise_dB)
+
     # Clamp to valid range
     if crossing < 0 or crossing > dur or np.isnan(crossing):
-        return dur
+        return dur, onset_time
 
-    return float(crossing)
+    return float(crossing), onset_time
 
 
 def lundeby_per_stft_bin(Z, times):
@@ -156,15 +231,18 @@ def lundeby_per_stft_bin(Z, times):
     -------
     trunc_times : 1-D array (n_freqs,)
         Truncation time per frequency bin.
+    onset_times : 1-D array (n_freqs,)
+        Onset time per frequency bin.
     """
     n_freqs = Z.shape[0]
     trunc_times = np.zeros(n_freqs)
+    onset_times = np.zeros(n_freqs)
 
     for i_f in range(n_freqs):
         energy_env = np.abs(Z[i_f, :]) ** 2
-        trunc_times[i_f] = _lundeby_per_bin(energy_env, times)
+        trunc_times[i_f], onset_times[i_f] = _lundeby_per_bin(energy_env, times)
 
-    return trunc_times
+    return trunc_times, onset_times
 
 
 # ------------------------------------------------------------------------------
@@ -257,13 +335,14 @@ def truncate_lundeby(rir, fs, winLen=1024, hop=512):
     times = SFT.t(rir_len)
     n_freqs, n_frames = Z.shape
 
-    # Per-bin Lundeby truncation times
-    trunc_times = lundeby_per_stft_bin(Z, times)
+    # Per-bin Lundeby truncation and onset times
+    trunc_times, onset_times = lundeby_per_stft_bin(Z, times)
 
-    # Build mask from per-bin truncation times
+    # Build mask from per-bin truncation and onset times
     mask = np.ones((n_freqs, n_frames), dtype=float)
     for i_f in range(n_freqs):
         mask[i_f, times > trunc_times[i_f]] = 0
+        mask[i_f, times < onset_times[i_f]] = 0
 
     # Apply mask and reconstruct via ISTFT
     Z_masked = Z * mask
@@ -274,4 +353,3 @@ def truncate_lundeby(rir, fs, winLen=1024, hop=512):
         rir_trunc = np.pad(rir_trunc, (0, rir_len - len(rir_trunc)))
 
     return rir_trunc, mask, trunc_times, (freqs, times)
-

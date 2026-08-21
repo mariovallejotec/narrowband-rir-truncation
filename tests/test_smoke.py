@@ -11,8 +11,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from truncate_repeated_v16 import truncate_covariance_band_expanded
-from truncate_single_v16 import truncate_lundeby_band_expanded
+from truncate_repeated_v19 import truncate_covariance_band_expanded
+from truncate_single_v19 import truncate_lundeby_band_expanded
 
 FS = 48000
 N = FS  # 1 s
