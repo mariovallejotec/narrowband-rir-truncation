@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Narrowband Truncation of Measured Room Impulse Responses</title>
+<meta name="description" content="Dataset and methodology for narrowband, per-frequency truncation of measured room impulse responses, with an open database of truncated RIRs aggregated from public sources.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1b19; --ink-2:#3f3d38; --muted:#6f6a61; --line:#d6d1c7; --bg:#e9e6df; --bg-2:#f0ede7; --card:#f6f4ef;
+    --accent:#2f4f7f; --accent-2:#e3e8ef; --raw:#9a4a0b; --raw-bg:#f3e6d6; --trunc:#0f6a63; --trunc-bg:#dfeeeb;
+    --radius:10px; --maxw:820px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6;font-size:16.5px;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none;text-underline-offset:2px}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  h1,h2,h3{font-family:"Source Serif 4",Georgia,"Times New Roman",serif;font-weight:600;letter-spacing:-.01em;line-height:1.25}
+  h2{font-size:26px;margin-bottom:6px}
+  h3{font-size:18px;margin:22px 0 8px}
+  p{margin-bottom:14px;color:var(--ink-2)}
+  code{font-family:"JetBrains Mono",SFMono-Regular,Menlo,monospace;font-size:.88em;background:var(--bg-2);padding:2px 6px;border-radius:5px;border:1px solid var(--line)}
+  hr.div{border:none;border-top:1px solid var(--line);margin:0}
+
+  /* SECTION MARKER — replaces the generic "eyebrow" pill label */
+  .marker{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .marker .num{font:500 13px "JetBrains Mono",monospace;color:var(--muted)}
+  .marker .lbl{font-size:12.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+
+  main{max-width:var(--maxw);margin:0 auto;min-height:60vh}
+  section{padding:44px 24px}
+  .lead{font-size:17.5px;line-height:1.65;color:var(--ink)}
+  .kw{font-size:13.5px;color:var(--muted);margin-top:10px}
+
+  /* HERO */
+  header.hero{padding-bottom:20px}
+  header.hero .venue{font:500 13px "JetBrains Mono",monospace;color:var(--muted);margin-bottom:14px}
+  header.hero h1{font-size:clamp(26px,3.6vw,36px);margin-bottom:20px}
+  .authors{margin-bottom:22px;font-size:14.5px;color:var(--ink-2)}
+  .authors .author{display:inline}
+  .authors .author:not(:last-child)::after{content:", "}
+  .authors .af{color:var(--muted);font-size:12.5px}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-size:14px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--ink);padding-bottom:1px}
+  .btn:hover{color:var(--accent);border-color:var(--accent);text-decoration:none}
+  .btn.soon{color:var(--muted);border-color:var(--line);cursor:default}
+  .btn.soon:hover{color:var(--muted);border-color:var(--line)}
+  .btn svg{width:14px;height:14px;fill:currentColor}
+  .ph{background:#ffe86a;color:#3a3000;padding:0 5px;border-radius:3px;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+
+  /* TABS */
+  .tabbar{background:rgba(233,230,223,.94);backdrop-filter:saturate(160%) blur(10px);border-bottom:1px solid var(--line)}
+  .tabbar .inner{max-width:1180px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:2px;padding:10px 20px;overflow-x:auto;scrollbar-width:none}
+  .tabbar .inner::-webkit-scrollbar{display:none}
+  .tabbar .brand{font:600 13.5px "Source Serif 4",Georgia,serif;color:var(--ink);white-space:nowrap;flex:0 0 auto;margin-right:10px;padding-right:14px;border-right:1px solid var(--line)}
+  .tab{appearance:none;border:none;background:transparent;font:500 13px Inter,sans-serif;color:var(--muted);padding:7px 9px;border-radius:6px;cursor:pointer;white-space:nowrap;flex:0 0 auto}
+  .tab:hover{background:var(--bg-2);color:var(--ink)}
+  .tab.active{color:var(--ink);font-weight:600;text-decoration:underline;text-underline-offset:4px}
+  .panel{display:none}
+  .panel.active{display:block}
+
+  /* SANDWICH SHELL — top bar and footer stay put, only the middle scrolls */
+  body{height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  .tabbar{flex:0 0 auto}
+  main{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  footer{flex:0 0 auto}
+
+  /* TEASER */
+  .teaser figure{border:1px solid var(--line);border-radius:var(--radius);padding:14px;background:var(--bg-2)}
+  .teaser img{width:100%;height:auto;display:block;border-radius:4px;filter:brightness(.965)}
+  figcaption{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.55}
+  figcaption b{color:var(--ink-2);font-weight:600}
+
+  .eq{font-family:"Source Serif 4",Georgia,serif;font-size:18px;text-align:center;margin:16px 0 18px;color:var(--ink)}
+  .eq sub,.eq sup{font-size:.65em}
+
+  /* STEPS — replaces the boxed flowchart */
+  ol.steps{list-style:none;counter-reset:step;margin:18px 0 6px;padding-left:0;border-left:2px solid var(--line)}
+  ol.steps li{position:relative;padding:6px 0 6px 22px;font-size:14.5px;color:var(--ink-2)}
+  ol.steps li::before{counter-increment:step;content:counter(step);position:absolute;left:-11px;top:6px;width:20px;height:20px;background:var(--bg);border:2px solid var(--line);border-radius:50%;font:500 10.5px "JetBrains Mono",monospace;color:var(--muted);display:flex;align-items:center;justify-content:center}
+  ol.steps li strong{color:var(--ink)}
+
+  .defs h3{margin-top:24px}
+  .defs h3:first-child{margin-top:18px}
+
+  /* DATASET TABLE */
+  table.sources{width:100%;border-collapse:collapse;margin:18px 0;font-size:13.5px}
+  table.sources th{text-align:left;font:600 11.5px Inter,sans-serif;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);border-bottom:1px solid var(--line);padding:0 10px 8px 0}
+  table.sources td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:top}
+  table.sources td.nm{font-weight:600;color:var(--ink);white-space:nowrap}
+  table.sources td.lic{font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--ink-2);white-space:nowrap}
+  table.sources tr:last-child td{border-bottom:none}
+
+  /* AUDIO */
+  .ex{border:1px solid var(--line);border-radius:var(--radius);background:var(--card);overflow:hidden;margin-bottom:18px}
+  .ex-head{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--bg-2)}
+  .ex-head .t{font-weight:600;font-size:14.5px}
+  .ex-head .m{display:block;font-size:12px;color:var(--muted);font-family:"JetBrains Mono",monospace;margin-top:2px}
+  .ex-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  .ex-body > div{padding:14px 16px}
+  .ex-body > div + div{border-left:1px solid var(--line)}
+  .lbl{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px}
+  .lbl.raw{color:var(--raw)}
+  .lbl.trunc{color:var(--trunc)}
+  .lbl i{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+  audio{width:100%;height:36px}
+  .ex img{width:100%;display:block;border-top:1px solid var(--line)}
+  .note{font-size:13.5px;color:var(--muted);font-style:italic}
+
+  /* CODE / CITE */
+  pre{font-family:"JetBrains Mono",SFMono-Regular,Menlo,monospace;font-size:12.5px;line-height:1.6;background:#0f1218;color:#e6e8ec;padding:18px 20px;border-radius:var(--radius);overflow-x:auto;position:relative;margin-top:14px}
+  .copy{position:absolute;top:10px;right:10px;font:600 11.5px Inter,sans-serif;background:#232834;color:#e6e8ec;border:1px solid #343b49;border-radius:6px;padding:5px 9px;cursor:pointer}
+  .copy:hover{background:#2d3442}
+
+  footer{background:rgba(233,230,223,.94);backdrop-filter:saturate(160%) blur(10px);border-top:1px solid var(--line)}
+  footer .inner{max-width:var(--maxw);margin:0 auto;padding:14px 24px;font-size:12.5px;color:var(--muted)}
+  footer p{margin-bottom:2px;color:var(--muted)}
+  footer p:last-child{margin-bottom:0}
+
+  @media (max-width:640px){
+    .ex-body{grid-template-columns:1fr}
+    .ex-body > div + div{border-left:none;border-top:1px solid var(--line)}
+    table.sources{display:block;overflow-x:auto;white-space:nowrap}
+  }
+</style>
+</head>
+<body>
+
+<div class="tabbar">
+  <div class="inner">
+    <span class="brand">Narrowband RIR Truncation</span>
+    <button class="tab" data-panel="overview">Overview</button>
+    <button class="tab" data-panel="paper">Paper</button>
+    <button class="tab" data-panel="method">Method</button>
+    <button class="tab" data-panel="dataset">Dataset</button>
+    <button class="tab" data-panel="validation">Validation</button>
+    <button class="tab" data-panel="examples">Audio examples</button>
+    <button class="tab" data-panel="listening">Listening test</button>
+    <button class="tab" data-panel="code">Code &amp; citation</button>
+  </div>
+</div>
+
+<main>
+
+<section class="panel" id="overview">
+  <header class="hero">
+    <div class="venue">Submitted to ICASSP 2027</div>
+    <h1>Dataset and Methodology for Narrowband Truncation of Measured Room Impulse Responses</h1>
+    <div class="authors" id="authors">
+      <span class="author">Karolina Prawda<span class="af"> (AudioLab, University of York)</span></span>
+      <span class="author">Nils Meyer-Kahlen<span class="af"> (Acoustics Lab, Aalto University)</span></span>
+      <span class="author">Mario Alberto Vallejo Reyes<span class="af"> (Tecnológico de Monterrey, AudioLab York)</span></span>
+    </div>
+  </header>
+  <div class="teaser">
+    <figure>
+      <img src="assets/img/spec_iks_stairway.png" alt="Spectrograms of a raw measured RIR (top) and the same RIR after narrowband truncation (bottom)">
+      <figcaption><b>A measured RIR before and after narrowband truncation.</b> Top: the raw measurement from the Aachen Impulse Response Database (binaural stairway, 1.5 m). The decay is buried in a noise floor whose onset differs across frequency. Bottom: the same response after per-bin truncation. Each STFT bin is cut at its own truncation time, so the frequency-dependent decay is preserved while the noise tail is removed, without the staircase artifact of octave-band truncation.</figcaption>
+    </figure>
+  </div>
+  <div class="marker" style="margin-top:26px"><span class="num">Abstract</span></div>
+  <p class="lead">Room impulse responses (RIRs) underpin the characterization of room acoustics, but public RIR datasets are distributed mostly in raw, noisy form, which lowers acoustic parameter estimation accuracy and impacts the performance of RIR-based machine-learning models. Previous truncation efforts find a single broadband point where the RIR and noise energies are equal, and cannot reliably separate frequency-dependent decay from the noise. Per-octave-band truncation is also insufficient for preserving detailed decay properties in RIRs.</p>
+  <p>This study addresses these issues by providing a database of measured RIRs truncated using a narrowband, per-frequency truncation pipeline for single and repeated RIR measurements, with added outlier detection to remove narrowband ringing. We validate the method against the broadband and per-octave baselines on synthetic RIRs, and show the effect of using truncated signals on the results of RIR representation learning. Finally, we evaluate through a subjective test whether the truncated RIRs are perceived as less noisy and free from artifacts. The processed database is released as open source, aggregating several public sources, to support reproducible room-acoustics research.</p>
+  <p class="kw">Keywords: room impulse response, impulse response truncation, reverberation time, open dataset</p>
+</section>
+
+<section class="panel" id="paper">
+  <div class="marker"><span class="lbl">Paper</span></div>
+  <h2>Full manuscript</h2>
+  <p class="note">The paper is not public yet. This tab will hold the PDF and the arXiv/ICASSP link once it is submitted.</p>
+</section>
+
+<section class="panel" id="method">
+  <div class="marker"><span class="num">01</span><span class="lbl">Method</span></div>
+  <h2>Narrowband RIR truncation</h2>
+  <p>A measured RIR consists of the impulse response <i>h</i>(<i>t</i>) and an additive noise term <i>u</i>(<i>t</i>). The truncation point <i>t</i><sub>T</sub> is the time at which the decaying energy of the RIR and the noise energy are equal. Existing methods assume that the decay rate and noise floor are constant within a frequency band, and therefore estimate at best a single truncation point per octave band, which leads to a staircase-like decay across frequency and may be insufficient for RIRs with detailed narrowband decays, for instance when a flutter echo occurs. We instead determine a truncation point for every frequency bin of the short-time Fourier transform (STFT):</p>
+  <div class="eq">|<i>H</i>[<i>t</i><sub>T,<i>k</i></sub>, <i>k</i>]|<sup>2</sup> = |<i>U</i>[<i>t</i><sub>T,<i>k</i></sub>, <i>k</i>]|<sup>2</sup></div>
+  <p>where <i>H</i> and <i>U</i> are the STFTs of <i>h</i> and <i>u</i>, and <i>k</i> is the frequency-bin index. Because the noisy decay varies bin to bin and can be contaminated by measurement artifacts and ringing, the pipeline adds pre- and post-processing steps to make the estimate robust:</p>
+
+  <ol class="steps">
+    <li>Raw measured RIR</li>
+    <li>Per-channel resample to 48 kHz</li>
+    <li>DC offset removal</li>
+    <li>Short-time Fourier transform (per-bin analysis)</li>
+    <li>Per-bin truncation time via <strong>Lundeby's method</strong> for a single measurement, or the <strong>covariance method</strong> across repeated measurements</li>
+    <li>Ringing outlier detection and band-expansion correction</li>
+    <li>Time-frequency masking and inverse STFT → truncated RIR</li>
+  </ol>
+
+  <div class="defs">
+    <h3>Preprocessing</h3>
+    <p>Truncation accuracy does not depend on the sampling rate, so resampling is optional; all RIRs are unified to 48 kHz for ease of use of the released database. DC correction by mean subtraction is necessary: a constant hardware offset keeps the envelope of the 0 Hz bin flat and prevents that bin from ever being truncated. An offset of about −2×10<sup>−6</sup> was observed in three of the five recording channels of the Arni dataset.</p>
+
+    <h3>Truncation point determination</h3>
+    <p>The STFT uses 1024 frequency bins, a 21.3 ms Hamming window and 50% overlap. For a single measurement, Lundeby's method determines the decay rate and noise floor of each bin and iteratively estimates their intersection. For repeated measurements, the covariance between pairs of RIRs is smoothed with unimodal regression and the truncation point follows from the covariance of the noise floor. A binary mask built from the per-bin truncation times is multiplied with the STFT and inverted.</p>
+
+    <h3>Outlier detection</h3>
+    <p>Both methods are sensitive to narrowband ringing: bins whose truncation time deviates sharply from their spectral neighbours. A bin is flagged when its truncation time exceeds 1.25× the median of its 1/3-octave neighbourhood; every bin within 150 Hz of a flagged bin is replaced by the median of the healthy bins in a full-octave neighbourhood, over 100 Hz to 18 kHz. The parameters were set by sweeping a 3×5×3 grid against 107 RIRs across four datasets with manually confirmed ringing.</p>
+  </div>
+</section>
+
+<section class="panel" id="dataset">
+  <div class="marker"><span class="num">02</span><span class="lbl">Dataset</span></div>
+  <h2>An open database of narrowband-truncated RIRs</h2>
+  <p class="lead">The truncated RIR database is released as an open-source collection on Hugging Face. The processed RIRs are derived only from datasets that allow open publishing of derivative work, such as CC-BY 4.0, MIT or Apache 2.0 licenses, and the collection is organised as subsets, one per original source, so that it can keep growing as further public RIR datasets are processed.</p>
+  <p>Each source folder contains its truncated RIRs in the file format of the primary dataset (32-bit float WAV or SOFA), a flat naming scheme that folds the original directory hierarchy into the filename, and an attribution matrix linking the primary repositories and licenses.</p>
+
+  <table class="sources">
+    <thead><tr><th>Source</th><th>Origin</th><th>License</th></tr></thead>
+    <tbody>
+      <tr><td class="nm">Arni</td><td>Prawda, Schlecht &amp; Välimäki (2022) · variable-acoustics room, Aalto Acoustics Lab</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">OpenAIR</td><td>Murphy et al. · AudioLab, University of York</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">Aachen IR Database</td><td>Jeub, Schäfer &amp; Vary (2009) · RWTH Aachen</td><td class="lic">MIT</td></tr>
+      <tr><td class="nm">MRTD</td><td>Götz et al. (2024) · Multi-Room Transition Dataset</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">TH Köln SRIR</td><td>Lübeck, Arend &amp; Pörschmann (2021) · high-resolution spatial RIRs</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">C4DM RIR Data Set</td><td>Stewart &amp; Sandler (2010) · Centre for Digital Music, QMUL</td><td class="lic">CC BY-NC-SA 4.0</td></tr>
+      <tr><td class="nm">BUT ReverbDB</td><td>Szöke et al. (2018) · Brno University of Technology</td><td class="lic">Apache 2.0</td></tr>
+      <tr><td class="nm">MOTUS</td><td>Götz, Schlecht &amp; Pulkki (2021) · higher-order Ambisonic RIRs, varying furniture</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">EchoThief</td><td>Warren · EchoThief Impulse Response Library</td><td class="lic">custom</td></tr>
+      <tr><td class="nm">Sauna RIR dataset</td><td>Prawda, Pitkänen &amp; Schlecht (2024)</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">REVERB Challenge</td><td>Kinoshita et al.</td><td class="lic">CC BY 4.0</td></tr>
+      <tr><td class="nm">dEchorate <span class="ph">(pending)</span></td><td>Di Carlo et al. (2021) · calibrated room with controllable panels</td><td class="lic">CC BY 4.0</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Attribution to each original source is provided in the release metadata, together with citation instructions per subset. Where a primary database uses a custom license, its license file is included as-is.</p>
+</section>
+
+<section class="panel" id="validation">
+  <div class="marker"><span class="num">03</span><span class="lbl">Validation</span></div>
+  <h2>Does per-bin truncation recover the right cut?</h2>
+  <p>The method is validated on three fronts: against ground truth on synthetic responses, against octave-band truncation on measured responses, and through its effect on RIR representation learning. Perceptual transparency is assessed separately in the listening test below.</p>
+
+  <div class="defs">
+    <h3>Synthetic RIRs with known decay</h3>
+    <p>100 impulse responses synthesised with a feedback delay network (pyFDN, 32 delays of 500 to 2000 samples, graphic equalisers as attenuation filters), with low-passed decay: <i>T</i><sub>60</sub> drawn uniformly from 1.2 to 2 s at DC and 0.2 to 1 s at Nyquist, crossover between 1 and 4 kHz. White noise was added at peak SNRs between 30 and 60 dB, extending 1 to 1.8 s beyond the response.</p>
+    <p>Lundeby's method was applied at three granularities: broadband, octave-band and the proposed narrowband. Narrowband and octave-band truncation both reach a median error below 10% of the expected truncation time above 300 Hz, with the proposed method more accurate at low frequencies and with less variance overall. Broadband truncation shows the largest errors across all frequencies.</p>
+    <p class="note">Figure from the paper (relative error vs. frequency) pending.</p>
+
+    <h3>Measured RIRs</h3>
+    <p>On a RIR from the MRTD dataset, truncation in full octave bands without inter-band interpolation or smoothing produces the characteristic staircase-like decay across frequency. The proposed narrowband-smoothed method yields a smooth, detailed energy decay on the same response.</p>
+    <p class="note">Figure from the paper and quantitative parameter comparison pending.</p>
+
+    <h3>Effect on RIR representation learning</h3>
+    <p>To assess the applicability of the released database, we reproduce the study on the effect of noise-model mismatch on learned RIR representations and on the downstream task of reverberation time estimation (Prawda, Meyer-Kahlen &amp; Schlecht, EUSIPCO 2026), replacing the raw RIRs with their truncated counterparts.</p>
+    <p class="note">Results pending.</p>
+
+    <h3>Outlier correction in action</h3>
+    <p>Measurement artifacts can produce abnormally long truncation times in isolated bins, for instance around 5 kHz. The outlier detection smooths those bins before masking, preventing the error from propagating to the final truncated RIR.</p>
+    <p class="note">Four-panel mask figure from the paper pending.</p>
+  </div>
+</section>
+
+<section class="panel" id="examples">
+  <div class="marker"><span class="num">04</span><span class="lbl">Audio examples</span></div>
+  <h2>Raw vs. narrowband-truncated</h2>
+  <p>Three pairs, one per single-measurement source. Each pair is the same measured RIR before and after truncation, loudness-matched with a single gain measured on the raw member so that the level relationship within the pair is preserved. The spectrograms are the before/after plots produced by the pipeline.</p>
+  <p class="note">Use headphones in a quiet environment. RIRs are short and impulsive: set a moderate playback level before pressing play.</p>
+
+  <div class="ex">
+    <div class="ex-head"><span class="t">Aachen Impulse Response Database · binaural stairway, 1.5 m</span><span class="m">air_binaural_stairway_1_1_1_150</span></div>
+    <div class="ex-body">
+      <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/iks_stairway_raw.wav"></audio></div>
+      <div><span class="lbl trunc"><i></i>Truncated</span><audio controls preload="none" src="assets/audio/iks_stairway_truncated.wav"></audio></div>
+    </div>
+    <img src="assets/img/spec_iks_stairway.png" alt="Before/after spectrogram, Aachen stairway">
+  </div>
+
+  <div class="ex">
+    <div class="ex-head"><span class="t">OpenAIR · Holy Trinity Church, Goodramgate (York), position 2</span><span class="m">bformat_IR_Position2_HolyTrin_M8acn</span></div>
+    <div class="ex-body">
+      <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/openair_holytrinity_raw.wav"></audio></div>
+      <div><span class="lbl trunc"><i></i>Truncated</span><audio controls preload="none" src="assets/audio/openair_holytrinity_truncated.wav"></audio></div>
+    </div>
+    <img src="assets/img/spec_openair_holytrinity.png" alt="Before/after spectrogram, OpenAIR Holy Trinity">
+  </div>
+
+  <div class="ex">
+    <div class="ex-head"><span class="t">dEchorate · room 000010, source 6, microphone 18</span><span class="m">room000010_src6_mic18</span></div>
+    <div class="ex-body">
+      <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/dechorate_room000010_raw.wav"></audio></div>
+      <div><span class="lbl trunc"><i></i>Truncated</span><audio controls preload="none" src="assets/audio/dechorate_room000010_truncated.wav"></audio></div>
+    </div>
+    <img src="assets/img/spec_dechorate_room000010.png" alt="Before/after spectrogram, dEchorate">
+  </div>
+</section>
+
+<section class="panel" id="listening">
+  <div class="marker"><span class="num">05</span><span class="lbl">Perceptual evaluation</span></div>
+  <h2>Paired-comparison listening test</h2>
+  <p class="lead">A paired-comparison listening test assesses whether the narrowband truncation is perceptually transparent: whether the removed background noise is audible, and whether the reverberant decay is preserved. Each trial presents two short audio stimuli and asks a couple of quick questions about what you hear.</p>
+
+  <p>The test runs on goListen and takes around 30 minutes. Participants are recruited in two groups: a reference sample tested under controlled conditions in the listening booths at Aalto University, and an online panel. Twenty participants are targeted, following ITU-R BS.1116 for systems expected to be nearly transparent.</p>
+  <p>Use good headphones in a quiet place. The test begins with three practice trials to set your volume and get familiar with the interface; they do not count towards the results. Responses are anonymous, and participation is voluntary.</p>
+  <p><span class="ph">The test is currently open. Results will be reported here once data collection is complete.</span></p>
+  <a class="btn" href="https://golisten.ucd.ie/task/ab-test/6a9af0a69125fddf5148ab2e" target="_blank" rel="noopener">Take the listening test</a>
+</section>
+
+<section class="panel" id="code">
+  <div class="marker"><span class="num">06</span><span class="lbl">Code</span></div>
+  <h2>Reproduce the pipeline</h2>
+  <p>The truncation pipeline, dataset loaders and quality classifier are released as Python code on GitHub. <code>produce_dataset.py</code> runs the full pipeline over a raw source collection and writes the truncated RIRs together with the before/after spectrograms.</p>
+  <a class="btn" href="https://github.com/mariovallejotec/narrowband-rir-truncation" target="_blank" rel="noopener">github.com/mariovallejotec/narrowband-rir-truncation</a>
+
+  <h3 style="margin-top:36px">Citation</h3>
+  <p><span class="ph">Placeholder entry: venue, year and DOI to be filled in once the paper is accepted.</span></p>
+  <pre id="bib"><button class="copy" onclick="copyBib(this)">Copy</button>@article{vallejo2026narrowband,
+  title   = {Dataset and Methodology for Narrowband Truncation of
+             Measured Room Impulse Responses},
+  author  = {Vallejo Reyes, Mario Alberto and Meyer-Kahlen, Nils and Prawda, Karolina},
+  year    = {2026},
+  note    = {Submitted to ICASSP 2027}
+}</pre>
+</section>
+
+</main>
+
+<footer>
+  <div class="inner">
+    <p>University of York · Aalto University · Tecnológico de Monterrey</p>
+  </div>
+</footer>
+
+<script>
+var PANELS = ['overview','paper','method','dataset','validation','examples','listening','code'];
+function showPanel(id, push){
+  if (PANELS.indexOf(id) < 0) id = 'overview';
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.toggle('active', p.id === id); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.panel === id); });
+  document.querySelectorAll('audio').forEach(function(a){ a.pause(); });
+  if (push) history.replaceState(null, '', '#' + id);
+  if (push) document.querySelector('main').scrollTop = 0;
+}
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){ showPanel(t.dataset.panel, true); });
+});
+window.addEventListener('hashchange', function(){ showPanel(location.hash.slice(1), false); });
+showPanel(location.hash.slice(1), false);
+
+function copyBib(btn){
+  var txt = document.getElementById('bib').innerText.replace(/^Copy\s*/,'');
+  navigator.clipboard.writeText(txt).then(function(){
+    btn.textContent = 'Copied';
+    setTimeout(function(){ btn.textContent = 'Copy'; }, 1500);
+  });
+}
+</script>
+</body>
+</html>
