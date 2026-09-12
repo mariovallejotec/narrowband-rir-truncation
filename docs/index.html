@@ -103,6 +103,7 @@
   .ex-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
   .ex-body > div{padding:14px 16px}
   .ex-body > div + div{border-left:1px solid var(--line)}
+  .ex-body-3{grid-template-columns:1fr 1fr 1fr}
   .lbl{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:9px}
   .lbl.raw{color:var(--raw)}
   .lbl.trunc{color:var(--trunc)}
@@ -123,7 +124,7 @@
   footer p:last-child{margin-bottom:0}
 
   @media (max-width:640px){
-    .ex-body{grid-template-columns:1fr}
+    .ex-body,.ex-body-3{grid-template-columns:1fr}
     .ex-body > div + div{border-left:none;border-top:1px solid var(--line)}
     table.sources{display:block;overflow-x:auto;white-space:nowrap}
   }
@@ -300,23 +301,24 @@
   <a class="btn" href="https://golisten.ucd.ie/task/ab-test/6a9af0a69125fddf5148ab2e" target="_blank" rel="noopener">Take the listening test</a>
 
   <h3>Example stimuli from the test</h3>
-  <p>Two of the trial conditions, beyond the raw/truncated pairs shown under Audio examples. First, the same stairway measurement featured there, now convolved with speech, to check that truncation stays transparent on a speech-relevant signal rather than only on the bare RIR. Second, one of the six deliberate mis-truncation controls used in the test: the truncation point is moved to the midpoint of the response, well before the true noise floor, to confirm that participants can hear an artifact when one is actually present.</p>
+  <p>One measured RIR in the three states that the test compares: the raw measurement, the same RIR truncated by the pipeline, and the same RIR deliberately mis-truncated (the truncation point moved to the midpoint of the decay, the negative control used in the test). Below, the same room convolved with speech, raw and truncated, as presented in the speech block of the test.</p>
 
   <div class="ex">
-    <div class="ex-head"><span class="t">Aachen IR Database · binaural stairway, 1.5 m, convolved with a Harvard sentence</span><span class="m">speech01_air_binaural_stairway_1_1_1_150</span></div>
+    <div class="ex-head"><span class="t">Aachen Impulse Response Database · binaural stairway, 1.5 m</span><span class="m">air_binaural_stairway_1_1_1_150</span></div>
+    <div class="ex-body ex-body-3">
+      <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/iks_stairway_raw.wav"></audio></div>
+      <div><span class="lbl trunc"><i></i>Truncated</span><audio controls preload="none" src="assets/audio/iks_stairway_truncated.wav"></audio></div>
+      <div><span class="lbl bad"><i></i>Mis-truncated</span><audio controls preload="none" src="assets/audio/iks_stairway_halftruncated.wav"></audio></div>
+    </div>
+    <p class="note" style="padding:0 16px 14px">Mis-truncated is not pipeline output: every frequency bin is cut at half its estimated truncation time, so the loss of decay is clearly audible.</p>
+  </div>
+
+  <div class="ex">
+    <div class="ex-head"><span class="t">Same stairway RIR convolved with a Harvard sentence</span><span class="m">speech01_air_binaural_stairway_1_1_1_150</span></div>
     <div class="ex-body">
       <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/speech_iks_stairway_raw.wav"></audio></div>
       <div><span class="lbl trunc"><i></i>Truncated</span><audio controls preload="none" src="assets/audio/speech_iks_stairway_truncated.wav"></audio></div>
     </div>
-  </div>
-
-  <div class="ex">
-    <div class="ex-head"><span class="t">Aachen IR Database · binaural stairway, 15 cm</span><span class="m">truncctrl01_air_binaural_stairway_0_1_1_15</span></div>
-    <div class="ex-body">
-      <div><span class="lbl raw"><i></i>Raw</span><audio controls preload="none" src="assets/audio/trunccontrol_iks_stairway_raw.wav"></audio></div>
-      <div><span class="lbl bad"><i></i>Half-truncated</span><audio controls preload="none" src="assets/audio/trunccontrol_iks_stairway_halftruncated.wav"></audio></div>
-    </div>
-    <p class="note" style="padding:0 16px 14px">Negative control, not pipeline output: cut at the midpoint of the decay on purpose, so the noise loss is clearly audible.</p>
   </div>
 </section>
 
