@@ -155,7 +155,7 @@
     <div class="authors" id="authors">
       <span class="author">Mario Alberto Vallejo Reyes<span class="af"> (Tecnológico de Monterrey, AudioLab York)</span></span>
       <span class="author">Nils Meyer-Kahlen<span class="af"> (Acoustics Lab, Aalto University)</span></span>
-      <span class="author">Karolina Prawda<span class="af"> (AudioLab, University of York)</span></span>
+      <span class="author">Karolina Prawda<span class="af"> (AudioLab, University of York; Acoustics Lab, Aalto University)</span></span>
     </div>
   </header>
   <div class="teaser">
@@ -166,7 +166,7 @@
   </div>
   <div class="marker" style="margin-top:26px"><span class="num">Abstract</span></div>
   <p class="lead">Room impulse responses (RIRs) underpin the characterization of room acoustics, but public RIR datasets are distributed mostly in raw, noisy form, which lowers acoustic parameter estimation accuracy and impacts the performance of RIR-based machine-learning models. Previous truncation efforts find a single broadband point where the RIR and noise energies are equal, and cannot reliably separate frequency-dependent decay from the noise. Per-octave-band truncation is also insufficient for preserving detailed decay properties in RIRs.</p>
-  <p>This study addresses these issues by providing a database of measured RIRs truncated using a narrowband, per-frequency truncation pipeline for single and repeated RIR measurements, with added outlier detection to remove narrowband ringing. We validate the method against the broadband and per-octave baselines on synthetic RIRs, and show the effect of using truncated signals on the results of RIR representation learning. Finally, we evaluate through a subjective test whether the truncated RIRs are perceived as less noisy and free from artifacts. The processed database is released as open source, aggregating several public sources, to support reproducible room-acoustics research.</p>
+  <p>This study addresses these issues by providing a database of measured RIRs truncated using a narrowband, per-frequency truncation pipeline for single and repeated RIR measurements, with added outlier detection to remove narrowband ringing. We validate the method against the broadband and per-octave baselines on synthetic RIRs, and show the effect of narrowband truncation on measured RIR decay. We show via a subjective evaluation that the narrowband-truncated RIRs are perceived as less noisy and free from artifacts. The processed database is released as open source, aggregating several public sources, to support reproducible room-acoustics research.</p>
   <p class="kw">Keywords: room impulse response, impulse response truncation, reverberation time, open dataset</p>
 </section>
 
@@ -219,7 +219,6 @@
       <tr><td class="nm">Aachen IR Database</td><td>Jeub, Schäfer &amp; Vary (2009) · RWTH Aachen</td><td class="lic">MIT</td></tr>
       <tr><td class="nm">MRTD</td><td>Götz et al. (2024) · Multi-Room Transition Dataset</td><td class="lic">CC BY 4.0</td></tr>
       <tr><td class="nm">TH Köln SRIR</td><td>Lübeck, Arend &amp; Pörschmann (2021) · high-resolution spatial RIRs</td><td class="lic">CC BY 4.0</td></tr>
-      <tr><td class="nm">C4DM RIR Data Set</td><td>Stewart &amp; Sandler (2010) · Centre for Digital Music, QMUL</td><td class="lic">CC BY-NC-SA 4.0</td></tr>
       <tr><td class="nm">BUT ReverbDB</td><td>Szöke et al. (2018) · Brno University of Technology</td><td class="lic">Apache 2.0</td></tr>
       <tr><td class="nm">MOTUS</td><td>Götz, Schlecht &amp; Pulkki (2021) · higher-order Ambisonic RIRs, varying furniture</td><td class="lic">CC BY 4.0</td></tr>
       <tr><td class="nm">EchoThief</td><td>Warren · EchoThief Impulse Response Library</td><td class="lic">custom</td></tr>
@@ -234,25 +233,21 @@
 <section class="panel" id="validation">
   <div class="marker"><span class="num">03</span><span class="lbl">Validation</span></div>
   <h2>Does per-bin truncation recover the right cut?</h2>
-  <p>The method is validated on three fronts: against ground truth on synthetic responses, against octave-band truncation on measured responses, and through its effect on RIR representation learning. Perceptual transparency is assessed separately in the listening test below.</p>
+  <p>The method is validated on two fronts: against ground truth on synthetic responses, and against octave-band truncation on measured responses. Perceptual transparency is assessed separately in the listening test below.</p>
 
   <div class="defs">
     <h3>Synthetic RIRs with known decay</h3>
     <p>100 impulse responses synthesised with a feedback delay network (pyFDN, 32 delays of 500 to 2000 samples, graphic equalisers as attenuation filters), with low-passed decay: <i>T</i><sub>60</sub> drawn uniformly from 1.2 to 2 s at DC and 0.2 to 1 s at Nyquist, crossover between 1 and 4 kHz. White noise was added at peak SNRs between 30 and 60 dB, extending 1 to 1.8 s beyond the response.</p>
     <p>Lundeby's method was applied at three granularities: broadband, octave-band and the proposed narrowband. Narrowband and octave-band truncation both reach a median error below 10% of the expected truncation time above 300 Hz, with the proposed method more accurate at low frequencies and with less variance overall. Broadband truncation shows the largest errors across all frequencies.</p>
-    <p class="note">Figure from the paper (relative error vs. frequency) pending.</p>
+    <img src="assets/img/fig_synthesized_error.png" alt="Median relative error between expected and obtained truncation time for synthetic IRs, broadband vs octave-band vs narrowband, shaded regions show standard deviation">
 
     <h3>Measured RIRs</h3>
     <p>On a RIR from the MRTD dataset, truncation in full octave bands without inter-band interpolation or smoothing produces the characteristic staircase-like decay across frequency. The proposed narrowband-smoothed method yields a smooth, detailed energy decay on the same response.</p>
-    <p class="note">Figure from the paper and quantitative parameter comparison pending.</p>
-
-    <h3>Effect on RIR representation learning</h3>
-    <p>To assess the applicability of the released database, we reproduce the study on the effect of noise-model mismatch on learned RIR representations and on the downstream task of reverberation time estimation (Prawda, Meyer-Kahlen &amp; Schlecht, EUSIPCO 2026), replacing the raw RIRs with their truncated counterparts.</p>
-    <p class="note">Results pending.</p>
+    <img src="assets/img/fig_staircase.png" alt="Comparison between octave-band truncation (top) and proposed narrowband truncation (bottom) on a measured RIR from MRTD">
 
     <h3>Outlier correction in action</h3>
     <p>Measurement artifacts can produce abnormally long truncation times in isolated bins, for instance around 5 kHz. The outlier detection smooths those bins before masking, preventing the error from propagating to the final truncated RIR.</p>
-    <p class="note">Four-panel mask figure from the paper pending.</p>
+    <img src="assets/img/fig_rir_masks.png" alt="Left to right: spectrogram of raw RIR, initial mask with ringing, final mask with ringing removed, truncated RIR">
   </div>
 </section>
 
@@ -297,8 +292,7 @@
 
   <p>The test ran on goListen and took around 30 minutes. Twenty participants took part, following ITU-R BS.1116 for systems expected to be nearly transparent: 11 in listening booths at Aalto University, and 9 online, with a mean age of 29 and self-reported normal hearing.</p>
   <p>Use good headphones in a quiet place. The test begins with three practice trials to set your volume and get familiar with the interface; they do not count towards the results. Responses are anonymous, and participation is voluntary.</p>
-  <p>In the 24 trials of interest, the truncated RIRs were identified as less noisy 69% of the time. In the speech trials, listeners detected a difference 60% of the time. The truncation-error controls were correctly flagged 80% of the time, and the room controls 97.5% of the time.</p>
-  <p class="note">Data collection is closed.</p>
+  <p>In the 24 trials of interest, the truncated RIRs were identified as less noisy 69% of the time. In the 6 truncation-error trials, the prematurely truncated RIR was correctly identified 80% of the time. In the speech trials, listeners detected a difference 60% of the time. Two participants who reported no difference in one or two of the six room-control trials were not excluded, as they still detected 83% and 67% of them.</p>
 
   <h3>Example stimuli from the test</h3>
   <p>One measured RIR in the three states that the test compares: the raw measurement, the same RIR truncated by the pipeline, and the same RIR deliberately mis-truncated (the truncation point moved to the midpoint of the decay, the negative control used in the test). Below, the same room convolved with speech, raw and truncated, as presented in the speech block of the test.</p>
